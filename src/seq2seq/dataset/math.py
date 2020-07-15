@@ -4,6 +4,7 @@ import inflect
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
+
 class MathDatasetGenerator:
     digits = list("0123456789")
     operators = list("+-/*")
@@ -13,7 +14,7 @@ class MathDatasetGenerator:
         self._inflect_engine = inflect.engine()
 
     def _generate_number(self, max_digits=4):
-        length = np.random.randint(1, max_digits+1)
+        length = np.random.randint(1, max_digits + 1)
         number = ""
         for _ in range(length):
             number += str(np.random.randint(0, 10))
@@ -52,13 +53,12 @@ class MathDatasetGenerator:
         df = pd.DataFrame(data=rows, columns=["numbers", "text"])
         df = df.drop_duplicates()
 
-
         df_test, df_keep = train_test_split(df, train_size=0.2, shuffle=True)
         df_train, df_dev = train_test_split(df_keep, train_size=0.8, shuffle=True)
 
-        df_train.to_csv('data/raw/math.train')
-        df_dev.to_csv('data/raw/math.dev')
-        df_test.to_csv('data/raw/math.test')
+        df_train.to_csv("data/raw/math.train")
+        df_dev.to_csv("data/raw/math.val")
+        df_test.to_csv("data/raw/math.test")
 
         df.to_csv("data/raw/math.csv")
 
