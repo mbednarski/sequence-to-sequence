@@ -17,10 +17,8 @@ class Encoder(pl.LightningModule):
         )
 
     def forward(self, input_sequence):
-        # B x L
         embedded = self.embedding(input_sequence)
         _, encoded = self.encoder_rnn(embedded)
-        # 1 x B x C
 
         return encoded
 
@@ -45,11 +43,8 @@ class Decoder(pl.LightningModule):
         assert target_sequece is not None
 
         batch_size = target_sequece.shape[0]
-        # start with <s> token
+        # start with <start> token
         decoder_input = torch.Tensor(batch_size * [1]).unsqueeze(1).long().cuda()
-        # cuda?
-        # print('decoder_input shape', decoder_input.shape)
-        # print('decoder_input', decoder_input)
 
         loss = 0
         max_seq_len = target_sequece.shape[1]
@@ -68,18 +63,9 @@ class Decoder(pl.LightningModule):
                 embedded_input, context_vector
             )
 
-            # print('after_rnn_out shape' ,after_rnn_out.shape )
-            # print('after_rnn_out' ,after_rnn_out)
-            # print('context_vector shape' ,context_vector.shape )
-            # print('context_vector' ,context_vector)
-
-            # decoder_output
             decoder_output = self.fc(after_rnn_out.squeeze())
-            # print('decoder_output shape' , decoder_output.shape)
 
             pred_idx = torch.argmax(decoder_output, dim=1).unsqueeze(1).detach()
-
-            # print('pred_idx shape', pred_idx.shape)
 
             decoder_input = pred_idx
 
@@ -128,19 +114,16 @@ class SimpleSeq2Seq(pl.LightningModule):
 
         loss = 0
         for i, o in enumerate(outputs):
-            loss += self.criterion(o, y[:, i + 1])
+            loss += self.criterion(o, y[:, i])
 
         loss /= max_target_seq_len
 
-        if self.global_step % 500 == 0:
-            print(
-                "Example 0 x   :", "".join(self.dset.number_tokenizer.decode(x[0, :]))
-            )
-            print("Example 0 y   :", " ".join(self.dset.text_tokenizer.decode(y[0, :])))
+        if self.global_step % 100 == 0:
+            print("Example 0 x   :", self.dset.number_tokenizer.decode_clean(x[0, :]))
+            print("Example 0 y   :", self.dset.text_tokenizer.decode_clean(y[0, :]))
             predictions = torch.cat([x[0] for x in predictions])
             print(
-                "Example 0 pred:",
-                " ".join(self.dset.text_tokenizer.decode(predictions)),
+                "Example 0 pred:", self.dset.text_tokenizer.decode_clean(predictions),
             )
 
         return {"loss": loss}
@@ -244,7 +227,7 @@ class SimpleSeq2Seq(pl.LightningModule):
     def train_dataloader(self):
         self.dset = MathDataset()
         train_loader = DataLoader(
-            self.dset, batch_size=16, shuffle=True, collate_fn=self.dset.collate,
+            self.dset, batch_size=64, shuffle=True, collate_fn=self.dset.collate,
         )
         return train_loader
 
