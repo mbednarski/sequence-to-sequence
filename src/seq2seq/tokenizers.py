@@ -20,6 +20,16 @@ class NumberTokenizer:
         decoded = [self.idx2tok[x] for x in encoded]
         return decoded
 
+    def decode_clean(self, encoded: torch.LongTensor):
+        assert len(encoded.shape) == 1
+        decoded = [self.idx2tok[x] for x in encoded]
+        decoded_filtered = []
+        for d in decoded:
+            decoded_filtered.append(d)
+            if d == "</s>":
+                break
+        return "".join(decoded_filtered)
+
 
 def tokenize(text):
     tokens = []
@@ -39,7 +49,7 @@ def tokenize(text):
 
 class TextTokenizer:
     def __init__(self, texts_to_fit):
-        self.idx2tok = ["<pad>", "<s>", "</s>"]
+        self.idx2tok = ["<pad>", "<start>", "<eos>"]
 
         tokenized = [tokenize(x) for x in texts_to_fit]
         words = Counter(itertools.chain.from_iterable(tokenized))
@@ -51,13 +61,23 @@ class TextTokenizer:
         encoded = [self.tok2idx[x] for x in numbers if x != " "]
 
         if add_special_tokens:
-            encoded = [self.tok2idx["<s>"]] + encoded + [self.tok2idx["</s>"]]
+            encoded = encoded + [self.tok2idx["<eos>"]]
 
         return torch.LongTensor(encoded)
 
     def decode(self, encoded: torch.LongTensor):
         decoded = [self.idx2tok[x] for x in encoded]
         return decoded
+
+    def decode_clean(self, encoded: torch.LongTensor):
+        assert len(encoded.shape) == 1
+        decoded = [self.idx2tok[x] for x in encoded]
+        decoded_filtered = []
+        for d in decoded:
+            decoded_filtered.append(d)
+            if d == "<eos>":
+                break
+        return " ".join(decoded_filtered)
 
 
 if __name__ == "__main__":

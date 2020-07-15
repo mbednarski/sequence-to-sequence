@@ -6,12 +6,13 @@ import pandas as pd
 
 
 class MathDataset(Dataset):
-    def __init__(self):
+    def __init__(self, fname: str):
         super().__init__()
-        self.df = pd.read_csv("data/raw/math.csv")
+        self.df_full = pd.read_csv("data/raw/math.csv")
+        self.df = pd.read_csv(fname)
 
         self.number_tokenizer = NumberTokenizer()
-        self.text_tokenizer = TextTokenizer(self.df["text"])
+        self.text_tokenizer = TextTokenizer(self.df_full["text"])
 
     def __len__(self):
         return len(self.df)
