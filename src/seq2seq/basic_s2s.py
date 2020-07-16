@@ -39,67 +39,6 @@ class Encoder(pl.LightningModule):
 
         return encoded
 
-
-class AttentionDecoder(pl.LightningModule):
-    def __init__(
-        self, embedding_size, target_vocab_size, context_size, teacher_force_ratio=0.5
-    ):
-        super().__init__()
-        self.teacher_force_ratio = teacher_force_ratio
-        self.embed = nn.Embedding(
-            num_embeddings=target_vocab_size,
-            embedding_dim=embedding_size,
-            padding_idx=0,
-        )
-
-        # decoder
-        self.decoder_rnn = nn.GRU(
-            input_size=embedding_size, hidden_size=context_size, batch_first=True
-        )
-        self.fc = nn.Linear(context_size, target_vocab_size)
-
-    def forward(self, context_vector, target_sequence=None):
-
-        assert target_sequence is not None
-
-        batch_size = target_sequence.shape[0]
-        # start with <start> token
-        decoder_input = torch.Tensor(batch_size * [1]).unsqueeze(1).long().cuda()
-
-        max_seq_len = target_sequence.shape[1]
-
-        outputs = []
-        predictions = []
-
-        for t in range(0, max_seq_len):
-
-            # embedded_input: Bx1xE
-            embedded_input = self.embed(decoder_input)
-            # print('embedded_input', embedded_input.shape)
-
-            # after_rnn
-            after_rnn_out, context_vector = self.decoder_rnn(
-                embedded_input, context_vector
-            )
-
-            decoder_output = self.fc(after_rnn_out.squeeze())
-
-            pred_idx = torch.argmax(decoder_output, dim=1).unsqueeze(1).detach()
-
-            if self.training:
-                if torch.rand(1) < self.teacher_force_ratio:
-                    decoder_input = target_sequence[:, t].unsqueeze(1)
-                else:
-                    decoder_input = pred_idx
-            else:
-                decoder_input = pred_idx
-
-            outputs.append(decoder_output)
-            predictions.append(pred_idx)
-
-        return outputs, predictions
-
-
 class Decoder(pl.LightningModule):
     def __init__(
         self, embedding_size, target_vocab_size, context_size, teacher_force_ratio=0.5
