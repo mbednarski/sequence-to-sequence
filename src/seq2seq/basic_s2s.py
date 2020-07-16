@@ -146,29 +146,6 @@ class SimpleSeq2Seq(pl.LightningModule):
 
         return {"loss": results["loss"], "log": {"train-loss": results["loss"]}}
 
-    # def training_step(self, batch, batch_idx):
-    #     x, y = batch
-    #     max_target_seq_len = y.shape[1]
-
-    #     encoded = self.encoder(x)
-    #     outputs, predictions = self.decoder(encoded, y)
-
-    #     loss = 0
-    #     for i, o in enumerate(outputs):
-    #         loss += self.criterion(o, y[:, i])
-
-    #     loss /= max_target_seq_len
-
-    #     if self.global_step % 100 == 0:
-    #         print("Example 0 x   :", self.dset.number_tokenizer.decode_clean(x[0, :]))
-    #         print("Example 0 y   :", self.dset.text_tokenizer.decode_clean(y[0, :]))
-    #         predictions = torch.cat([x[0] for x in predictions])
-    #         print(
-    #             "Example 0 pred:", self.dset.text_tokenizer.decode_clean(predictions),
-    #         )
-
-    #     return {"loss": loss}
-
     def validation_step(self, batch, batch_idx):
         x, y = batch
         max_target_seq_len = y.shape[1]
@@ -234,17 +211,6 @@ class SimpleSeq2Seq(pl.LightningModule):
             dset, batch_size=64, shuffle=False, collate_fn=dset.collate,
         )
         return loader
-
-    # def val_dataloader(self):
-    #     reversed_dataset = ReverseDataset(val_samples, tokenizer)
-    #     loader = DataLoader(
-    #         reversed_dataset,
-    #         batch_size=16,
-    #         shuffle=False,
-    #         collate_fn=tokenizer.collate_sequences,
-    #     )
-    #     return loader
-
 
 if __name__ == "__main__":
 
