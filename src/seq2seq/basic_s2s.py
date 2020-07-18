@@ -7,6 +7,29 @@ from torch.utils.data.dataloader import DataLoader
 from pytorch_lightning.logging import NeptuneLogger
 
 
+class Attention(nn.Module):
+    def __init__(self, encoder_hidden_dim, decoder_hidden_dim):
+        super().__init__()
+
+        self.attn = nn.Linear((encoder_hidden_dim * 2 + decoder_hidden_dim), decoder_hidden_dim)
+        self.v = nn.Linear(decoder_hidden_dim, 1, bias=False)
+
+    def forward(self, hidden, encoder_outputs):
+        # hidden: 1xBxC
+        # encoder_ouputs: Bxsrc_len x EO
+        src_len = encoder_outputs.shape[1]
+        hidden = hidden.repeat(src_len, 1, 1)
+
+        hidden = hidden.transpose(0,1)
+
+        energy = torch.cat((hidden, encoder_outputs), dim=2)
+        energy = self.attn(energy)
+        energy = torch.tanh(energy)
+
+        attention = self.v(energy).squeeze(2)
+        return torch.softmax(attention, dim=1)
+
+
 class Encoder(pl.LightningModule):
     def __init__(self, context_size, embedding_size, input_vocab_size):
         super().__init__()
@@ -27,7 +50,7 @@ class Encoder(pl.LightningModule):
 
     def forward(self, input_sequence):
         embedded = self.embedding(input_sequence)
-        _, encoded = self.encoder_rnn(embedded)
+        outputs, encoded = self.encoder_rnn(embedded)
 
         encoded = torch.cat((encoded[0, :, :], encoded[1, :, :]), dim=1)
 
@@ -37,7 +60,7 @@ class Encoder(pl.LightningModule):
 
         encoded = encoded.unsqueeze(0)
 
-        return encoded
+        return outputs, encoded
 
 class Decoder(pl.LightningModule):
     def __init__(
@@ -53,11 +76,13 @@ class Decoder(pl.LightningModule):
 
         # decoder
         self.decoder_rnn = nn.GRU(
-            input_size=embedding_size, hidden_size=context_size, batch_first=True
+            input_size=embedding_size + 2*context_size, hidden_size=context_size, batch_first=True
         )
         self.fc = nn.Linear(context_size, target_vocab_size)
 
-    def forward(self, context_vector, target_sequence=None):
+        self.attn = Attention(context_size, context_size)
+
+    def forward(self, encoder_outputs, context_vector, target_sequence=None):
 
         assert target_sequence is not None
 
@@ -76,9 +101,17 @@ class Decoder(pl.LightningModule):
             embedded_input = self.embed(decoder_input)
             # print('embedded_input', embedded_input.shape)
 
+            a = self.attn(context_vector, encoder_outputs)
+
+            a = a.unsqueeze(1)
+
+            weighted = torch.bmm(a, encoder_outputs)
+
+            rnn_input = torch.cat((embedded_input, weighted), dim=2)
+
             # after_rnn
             after_rnn_out, context_vector = self.decoder_rnn(
-                embedded_input, context_vector
+                rnn_input, context_vector
             )
 
             decoder_output = self.fc(after_rnn_out.squeeze())
@@ -92,6 +125,8 @@ class Decoder(pl.LightningModule):
                     decoder_input = pred_idx
             else:
                 decoder_input = pred_idx
+
+            # TODO: finish on <eos>
 
             outputs.append(decoder_output)
             predictions.append(pred_idx)
@@ -120,8 +155,8 @@ class SimpleSeq2Seq(pl.LightningModule):
         batch_size = x.shape[0]
         max_target_seq_len = y.shape[1]
 
-        encoded = self.encoder(x)
-        outputs, predictions = self.decoder(encoded, y)
+        encoder_outputs, encoded = self.encoder(x)
+        outputs, predictions = self.decoder(encoder_outputs, encoded, y)
 
         loss = 0
         for i, o in enumerate(outputs):
@@ -152,11 +187,11 @@ class SimpleSeq2Seq(pl.LightningModule):
 
         results = self.forward(x, y)
 
-        loss = 0
-        for i, o in enumerate(results["output"]):
-            loss += self.criterion(o, y[:, i])
+        # loss = 0
+        # for i, o in enumerate(results["output"]):
+        #     loss += self.criterion(o, y[:, i])
 
-        loss /= max_target_seq_len
+        # loss /= max_target_seq_len
 
         for i in range(10):
             print(
@@ -173,29 +208,15 @@ class SimpleSeq2Seq(pl.LightningModule):
                 self.val_dset.text_tokenizer.decode_clean(predictions),
             )
 
-        return {"loss": loss}
+        return {"loss":  results["loss"]}
 
     def validation_epoch_end(self, outputs):
         loss = torch.stack([x["loss"] for x in outputs]).mean()
 
         return {"log": {"val-loss": loss}}
 
-    # def validation_epoch_end(self, outputs):
-    #     losses = torch.stack([x["loss"] for x in outputs])
-
-    #     mean_loss = torch.mean(losses)
-    #     print(mean_loss)
-    #     return {"log": {"mean_val_loss": mean_loss}}
-
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters())
-
-    def train_dataloader(self):
-        self.dset = MathDataset()
-        train_loader = DataLoader(
-            self.dset, batch_size=64, shuffle=True, collate_fn=self.dset.collate,
-        )
-        return train_loader
 
     def train_dataloader(self):
         self.dset = MathDataset("data/raw/math.train")
