@@ -85,7 +85,7 @@ class Decoder(nn.Module):
         context_vector = context_vector.unsqueeze(0)
 
         if self.training:
-            assert target_sequence
+            assert target_sequence is not None
             max_seq_len = target_sequence.shape[1]
         else:
             assert max_target_seq_len
