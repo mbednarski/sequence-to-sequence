@@ -15,10 +15,14 @@ class Attention(nn.Module):
         """
         super().__init__()
 
+        self.encoder_hidden_size = encoder_hidden_size
         self.attn = nn.Linear(
             (encoder_hidden_size + decoder_hidden_size), decoder_hidden_size
         )
         self.v = nn.Linear(decoder_hidden_size, 1, bias=False)
+
+    def get_encoder_hidden_size(self):
+        return self.encoder_hidden_size
 
     def forward(
         self, hidden: torch.Tensor, encoder_outputs: torch.Tensor

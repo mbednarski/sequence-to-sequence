@@ -92,7 +92,7 @@ class Decoder(nn.Module):
             max_seq_len = max_target_seq_len
 
         if self.attention:
-            assert encoder_outputs
+            assert encoder_outputs is not None
             attention_map = torch.zeros(
                 batch_size, max_seq_len, encoder_outputs.shape[1],
             ).to(device=context_vector.device)
@@ -139,4 +139,11 @@ class Decoder(nn.Module):
         outputs = torch.stack(outputs).transpose(0, 1)
         predictions = torch.stack(predictions).squeeze(2).transpose(0, 1)
 
-        return {"outputs": outputs, "predictions": predictions}
+        if self.attention:
+            return {
+                "outputs": outputs,
+                "predictions": predictions,
+                "attention": attention_map,
+            }
+        else:
+            return {"outputs": outputs, "predictions": predictions}
