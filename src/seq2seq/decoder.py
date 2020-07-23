@@ -39,6 +39,7 @@ class Decoder(nn.Module):
         super().__init__()
 
         self.teacher_force_ratio = teacher_force_ratio
+        self.context_size = context_size
         self.start_idx = start_token_idx
         self.attention = attention
         self.embed = nn.Embedding(
@@ -59,6 +60,9 @@ class Decoder(nn.Module):
             )
 
         self.fc = nn.Linear(context_size, target_vocab_size)
+
+    def get_hidden_size(self):
+        return self.context_size
 
     def forward(
         self,
@@ -88,8 +92,11 @@ class Decoder(nn.Module):
             assert target_sequence is not None
             max_seq_len = target_sequence.shape[1]
         else:
-            assert max_target_seq_len
-            max_seq_len = max_target_seq_len
+            if target_sequence is not None:
+                max_seq_len = target_sequence.shape[1]
+            else:
+                assert max_target_seq_len
+                max_seq_len = max_target_seq_len
 
         if self.attention:
             assert encoder_outputs is not None

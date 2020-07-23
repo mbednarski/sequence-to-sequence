@@ -1,18 +1,18 @@
-from torch.utils.data import Dataset
-from torch.nn.utils.rnn import pad_sequence
-from seq2seq.tokenizers import NumberTokenizer, TextTokenizer
-
 import pandas as pd
+from torch.nn.utils.rnn import pad_sequence
+from torch.utils.data import Dataset
+
+from seq2seq.tokenizers import NumberTokenizer, TextTokenizer
 
 
 class MathDataset(Dataset):
-    def __init__(self, fname: str):
+    def __init__(self, fname: str, number_tokenizer, text_tokenizer):
         super().__init__()
         self.df_full = pd.read_csv("data/raw/math.csv")
         self.df = pd.read_csv(fname)
 
-        self.number_tokenizer = NumberTokenizer()
-        self.text_tokenizer = TextTokenizer(self.df_full["text"])
+        self.number_tokenizer = number_tokenizer
+        self.text_tokenizer = text_tokenizer
 
     def __len__(self):
         return len(self.df)

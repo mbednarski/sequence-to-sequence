@@ -29,6 +29,8 @@ class Encoder(nn.Module):
         :type dropout: float, optional
         """
         super().__init__()
+        self.hidden_size = context_size * 2
+
         self.embedding = nn.Embedding(
             num_embeddings=input_vocab_size,
             embedding_dim=embedding_size,
@@ -44,7 +46,10 @@ class Encoder(nn.Module):
 
         self.fc = nn.Linear(2 * context_size, context_size)
         self.tanh = nn.Tanh()
-        self.dropout = nn.Dropout(0.1)
+        self.dropout = nn.Dropout(dropout)
+
+    def get_hidden_size(self):
+        return self.hidden_size
 
     def forward(self, source_sequence: torch.Tensor) -> Dict[str, torch.Tensor]:
         """Forwards the encoder
