@@ -117,3 +117,44 @@ def test_decoder_eval_with_attention(batch_size):
         results["attention"].sum(dim=2).squeeze(),
         torch.ones((batch_size, max_target_seq_len)),
     )
+
+
+@pytest.mark.parametrize("batch_size", [(1), (64)])
+def test_decoder_train_with_attention(batch_size):
+    embedding_size = 50
+    target_vocab_size = 5
+    context_size = 128
+    target_seq_len = 30
+    input_seq_len = 58
+
+    attn = Attention(context_size * 2, decoder_hidden_size=context_size)
+
+    decoder = Decoder(
+        embedding_size=embedding_size,
+        target_vocab_size=target_vocab_size,
+        context_size=context_size,
+        start_token_idx=1,
+        attention=attn,
+    )
+    decoder.eval()
+
+    context_vector = torch.rand((batch_size, context_size))
+
+    encoder_outputs = torch.rand(batch_size, input_seq_len, context_size * 2)
+
+    results = decoder.forward(
+        context_vector,
+        max_target_seq_len=target_seq_len,
+        encoder_outputs=encoder_outputs,
+    )
+
+    target_sequence = torch.randint(0, target_vocab_size, (batch_size, target_seq_len))
+    criterion = torch.nn.CrossEntropyLoss()
+    loss = criterion(results["outputs"].transpose(1, 2), target_sequence)
+    loss.backward()
+
+    assert loss != 0
+    for param in decoder.parameters():
+        assert param.grad.max() != 0
+    for param in attn.parameters():
+        assert param.grad.max() != 0
